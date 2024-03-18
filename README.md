@@ -13,7 +13,7 @@ We propose an unsupervised point clouds semantic segmentation framework, called 
 </p>
 
 ## NOTE
-There are two projects deployed here. [pointdc_mk]() is based on [MinkowskiEngine](https://github.com/NVIDIA/MinkowskiEngine).
+There are two projects deployed here. [pointdc_mk](https://github.com/SCUT-BIP-Lab/PointDC/tree/main/pointdc_mk) is based on [MinkowskiEngine](https://github.com/NVIDIA/MinkowskiEngine).
 
 ## TODO
 - [ ] Release code based on Minkowski and model weight files
