@@ -63,4 +63,4 @@ CUDA_VISIBLE_DEVICES=0, python eval_ScanNet.py
 ```
 
 ## 3. Trained models
-The trained models for these three datasets can be found at [here]()
+The trained models and other processed files can be found at [here](https://pan.baidu.com/s/1ibxoq3HyxRJa3KrnPafCWw?pwd=6666)
