@@ -62,5 +62,5 @@ Revise experiment name ```expnames=[eval_experiment_name]```in Lines 141.
 CUDA_VISIBLE_DEVICES=0, python eval_ScanNet.py
 ```
 
-## 3. Trained models
+## 3. Download
 The trained models and other processed files can be found at [here](https://pan.baidu.com/s/1ibxoq3HyxRJa3KrnPafCWw?pwd=6666)

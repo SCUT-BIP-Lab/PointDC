@@ -1,5 +1,4 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2304.08965-b31b1b.svg)](https://arxiv.org/abs/2304.08965)
-![code visitors](https://visitor-badge.glitch.me/badge?page_id=vLAR-group/GrowSP)
 [![License CC BY-NC-SA 4.0](https://img.shields.io/badge/license-CC4.0-blue.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode)
 
 ## PointDC:Unsupervised Semantic Segmentation of 3D Point Clouds via Cross-modal Distillation and Super-Voxel Clustering (ICCV 2023)
