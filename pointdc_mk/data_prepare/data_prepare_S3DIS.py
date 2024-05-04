@@ -13,9 +13,12 @@ sys.path.append(ROOT_DIR)
 from lib.helper_ply import write_ply
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_path', type=str, default='/home/bip/czs/codes/growsp_inf/data/Stanford3dDataset_v1.2', help='raw data path')
-parser.add_argument('--processed_data_path', type=str, default='/home/bip/czs/codes/growsp_inf/data/S3DIS4growsp')
+parser.add_argument('--data_path', type=str, default='data/Stanford3dDataset_v1.2', help='raw data path')
+parser.add_argument('--processed_data_path', type=str, default='data/S3DIS/processed')
 args = parser.parse_args()
+
+args.data_path = join(ROOT_DIR, args.data_path)
+args.processed_data_path = join(ROOT_DIR, args.processed_data_path)
 
 anno_paths = [line.rstrip() for line in open(join(BASE_DIR, 'S3DIS_anno_paths.txt'))]
 anno_paths = [join(args.data_path, p) for p in anno_paths]

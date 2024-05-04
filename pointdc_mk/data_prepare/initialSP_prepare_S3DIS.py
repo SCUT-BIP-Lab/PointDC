@@ -32,11 +32,14 @@ colormap = np.array(colormap)
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_path', type=str, default='/home/bip/czs/codes/growsp_inf/data/S3DIS4growsp/input', help='raw data path')
-parser.add_argument('--sp_path', type=str, default='/home/bip/czs/codes/growsp_inf/data/S3DIS4growsp/initial_superpoints')
+parser.add_argument('--input_path', type=str, default='data/S3DIS/processed', help='raw data path')
+parser.add_argument('--sp_path', type=str, default='data/S3DIS/initial_superpoints')
 args = parser.parse_args()
 
-ignore_label = 12
+args.input_path = join(ROOT_DIR, args.input_path)
+args.sp_path = join(ROOT_DIR, args.sp_path)
+
+# ignore_label = 12
 voxel_size = 0.05
 vis = True
 
@@ -152,30 +155,8 @@ path_list = []
 folders = sorted(glob.glob(args.input_path + '/*.ply'))
 for _, file in enumerate(folders):
     path_list.append(file)
-pool = ProcessPoolExecutor(max_workers=4)
-result = list(pool.map(construct_superpoints, path_list))
-# result = []
-# for path in tqdm(path_list):
-#     result.append(construct_superpoints(path))
+    
+construct_superpoints(path_list[0])
+# pool = ProcessPoolExecutor(max_workers=40)
+# result = list(pool.map(construct_superpoints, path_list))
 print('end constructing initial superpoints')
-
-all_labels, all_sp2gt = [], []
-for (labels, sp2gt) in result:
-    mask = (sp2gt != -1) & (sp2gt != ignore_label)
-    labels, sp2gt = labels[mask].astype(np.int32), sp2gt[mask].astype(np.int32)
-    all_labels.append(labels), all_sp2gt.append(sp2gt)
-
-all_labels, all_sp2gt  = np.concatenate(all_labels), np.concatenate(all_sp2gt)
-sem_num = 12
-mask = (all_labels >= 0) & (all_labels < sem_num)
-histogram = np.bincount(sem_num * all_labels[mask] + all_sp2gt[mask], minlength=sem_num ** 2).reshape(sem_num, sem_num)
-o_Acc = histogram[range(sem_num), range(sem_num)].sum() / histogram.sum()
-tp = np.diag(histogram)
-fp = np.sum(histogram, 0) - tp
-fn = np.sum(histogram, 1) - tp
-IoUs = tp / (tp + fp + fn + 1e-8)
-m_IoU = np.nanmean(IoUs)
-s = '| mIoU {:5.2f} | '.format(100 * m_IoU)
-for IoU in IoUs:
-    s += '{:5.2f} '.format(100 * IoU)
-print(' Acc: {:.5f}  Test IoU'.format(o_Acc), s)
