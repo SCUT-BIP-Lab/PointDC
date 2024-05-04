@@ -12,12 +12,12 @@ from concurrent.futures import ProcessPoolExecutor
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_path', type=str, default='~', help='raw data path')
+parser.add_argument('--data_path', type=str, default='data/ScanNet/', help='raw data path')
 parser.add_argument('--processed_data_path', type=str, default='data/ScanNet/')
 args = parser.parse_args()
 
-SCANNET_RAW_PATH = Path(args.data_path)
-SCANNET_OUT_PATH = Path(args.processed_data_path)
+SCANNET_RAW_PATH = Path(join(ROOT_DIR, args.data_path))
+SCANNET_OUT_PATH = Path(join(ROOT_DIR, args.processed_data_path))
 TRAIN_DEST = 'train'
 TEST_DEST = 'test'
 SUBSETS = {TRAIN_DEST: 'scans', TEST_DEST: 'scans_test'}
@@ -59,19 +59,6 @@ def handle_process(path):
         label = -np.zeros(data.shape)
     out_f = phase_out_path / (f.name[:-len(POINTCLOUD_FILE)] + f.suffix)
 
-    '''Alignment'''
-    txtfile = str(f.parent) + '/'+ str(f.parts[-2]) +'.txt'
-    print(txtfile)
-    with open(txtfile) as txtfile:
-        lines = txtfile.readlines()
-    for line in lines:
-        line = line.split()
-        if line[0] == 'axisAlignment':
-            align_mat = np.array([float(x) for x in line[2:]]).reshape([4, 4]).astype(np.float32)
-            R = align_mat[:3, :3]
-            T = align_mat[:3, 3]
-            coords = coords.dot(R.T) + T
-
     '''Fix Data Bug'''
     for item, bug_index in BUGS.items():
         if item in path:
@@ -87,11 +74,11 @@ print('start preprocess')
 
 path_list = []
 for out_path, in_path in SUBSETS.items():
-    # phase_out_path = SCANNET_OUT_PATH / out_path
-    phase_out_path = SCANNET_OUT_PATH
+    phase_out_path = SCANNET_OUT_PATH / out_path
+    # phase_out_path = SCANNET_OUT_PATH
     phase_out_path.mkdir(parents=True, exist_ok=True)
     for f in (SCANNET_RAW_PATH / in_path).glob('*/*' + POINTCLOUD_FILE):
         path_list.append(str(f) + ',' + str(phase_out_path))
 
-pool = ProcessPoolExecutor(max_workers=10)
+pool = ProcessPoolExecutor(max_workers=30)
 result = list(pool.map(handle_process, path_list))
