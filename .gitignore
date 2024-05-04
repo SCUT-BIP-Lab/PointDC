@@ -3,4 +3,5 @@
 pointdc_mk/ckpt
 pointdc_mk/data
 
-
+*/__pycache__
+*/*/__pycache__
