@@ -17,18 +17,13 @@ warnings.filterwarnings('ignore')
 
 def parse_args():
     '''PARAMETERS'''
-    parser = argparse.ArgumentParser(description='PyTorch Unsuper_3D_Seg')
-    parser.add_argument('--data_path', type=str, default='data/ScanNet/train',
-                        help='pont cloud data path')
-    parser.add_argument('--feats_path', type=str, default='data/ScanNet/traindatas',
-                        help='pont cloud data path')
-    parser.add_argument('--sp_path', type=str, default= 'data/scans_growed_sp',
-                        help='initial sp path')
-    parser.add_argument('--expname', type=str, default= 'default',
-                        help='expname for logger')
+    parser = argparse.ArgumentParser(description='PointDC')
+    parser.add_argument('--data_path', type=str, default='data/ScanNet/train', help='pont cloud data path') # 点云文件路径
+    parser.add_argument('--feats_path', type=str, default='data/ScanNet/train_feats', help='pont cloud data path') # 特征体文件路径 
+    parser.add_argument('--sp_path', type=str, default= 'data/ScanNet/initial_superpoints', help='initial sp path') # 超体素文件路径
+    parser.add_argument('--expname', type=str, default= 'default', help='expname for logger')
     ###
-    parser.add_argument('--save_path', type=str, default='ckpt/ScanNet/',
-                        help='model savepath')
+    parser.add_argument('--save_path', type=str, default='ckpt/ScanNet/', help='model savepath')
     parser.add_argument('--max_epoch', type=list, default=[200, 30, 60], help='max epoch')
     ###
     parser.add_argument('--bn_momentum', type=float, default=0.02, help='batchnorm parameters')
@@ -98,13 +93,11 @@ def main(args, logger):
     loss = torch.nn.CrossEntropyLoss(ignore_index=-1).cuda()
     warmup_optimizer = torch.optim.SGD([{"params": seghead.parameters()}, {"params": model.parameters()}], \
                                 lr=args.lrs[1], momentum=args.momentum, dampening=args.dampening, weight_decay=args.weight_decay)
-    scheduler = lr_scheduler.StepLR(warmup_optimizer, step_size=5, gamma=0.9) # step lr
-
+    scheduler = lr_scheduler.StepLR(warmup_optimizer, step_size=5, gamma=0.8) # step lr
     logger.info('====>Start Warm Up.')
     for epoch in range(1, args.max_epoch[1]+1):
         logger.info('Update Optimizer lr:{:.2e}'.format(scheduler.get_last_lr()[0]))
         train(train_loader, logger, model, warmup_optimizer, loss, epoch, seghead, args.max_epoch[1])
-        # scheduler.step()
         ### Evalutaion and Save checkpoint
         if epoch % 5 == 0:
             torch.save(model.state_dict(), join(args.save_path, 'svc', 'model_' + str(epoch) + '_checkpoint.pth'))
@@ -114,11 +107,11 @@ def main(args, logger):
                 logger.info('WarmUp--Eval Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc) + s+'\n')
     logger.info('====>End Warm Up !!!\n')
     ## Iterative Training
-    del seghead, warmup_optimizer, scheduler # NOTE
+    del seghead, warmup_optimizer # NOTE
     logger.info('====>Start Iterative Training.')
     iter_optimizer = torch.optim.SGD(model.parameters(), \
                             lr=args.lrs[2], momentum=args.momentum, dampening=args.dampening, weight_decay=args.weight_decay)
-    scheduler = lr_scheduler.StepLR(iter_optimizer, step_size=5, gamma=0.9) # step lr
+    scheduler = lr_scheduler.StepLR(iter_optimizer, step_size=5, gamma=0.8) # step lr
     logger.info('====>Update pseudo labels.')
     centroids_norm = init_cluster(args, logger, cluster_loader, model)
     seghead = get_fixclassifier(args.feats_dim, args.primitive_num, centroids_norm).cuda()
