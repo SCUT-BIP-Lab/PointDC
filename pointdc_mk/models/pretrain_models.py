@@ -6,9 +6,9 @@ from MinkowskiEngine import MinkowskiNetwork
 from MinkowskiEngine import MinkowskiReLU
 import torch.nn.functional as F
 
+from os.path import dirname, abspath
 import sys
-sys.path.append('models')
-
+sys.path.append(dirname(abspath(__file__)))
 from common import ConvType, NormType, conv, conv_tr, get_norm, sum_pool
 
 class SegHead(nn.Module):

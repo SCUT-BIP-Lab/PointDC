@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 import MinkowskiEngine as ME
 import random
 import os
-# import open3d as o3d
+from tqdm import tqdm
 from lib.aug_tools import rota_coords, scale_coords, trans_coords, elastic_coords
 
 def read_txt(path):
@@ -49,25 +49,25 @@ class Scannetdistill(Dataset):
         self.feats_datas = []
         self.points_datas = []
 
+        self.preload_data() # 预读取文件到内存，内存不够自行修改
+
+        '''Initial Augmentations'''
+        self.trans_coords = trans_coords(shift_ratio=50)  ### 50%
+        self.rota_coords = rota_coords(rotation_bound = ((-np.pi/32, np.pi/32), (-np.pi/32, np.pi/32), (-np.pi, np.pi)))
+        self.scale_coords = scale_coords(scale_bound=(0.9, 1.1))
+        self.elastic_coords = elastic_coords(voxel_size=self.args.voxel_size)
+
+    def preload_data(self):
         for plyname in self.plypath:
             file = os.path.join(self.args.data_path, plyname[0:12]+'.ply')
             self.name.append(plyname[0:12])
             self.file.append(file)
             self.feats.append(os.path.join(self.args.feats_path, plyname[0:12]+'_feats.pth'))
 
-        for filepath in self.feats:
-            _, _, _, _, _, spfeats = torch.load(filepath) # load sp features from 2d model
-            self.feats_datas.append(torch.cat(spfeats.tolist()))
-        
-        for filepath in self.file:
-            data = read_ply(filepath) # load sp features from 2d model
+        for featpat, filepath in tqdm(zip(self.feats, self.file), desc='Pre Load Datas(1021)'): # 读取数据
+            spfeats, data = torch.load(featpat), read_ply(filepath)
+            self.feats_datas.append(spfeats)
             self.points_datas.append(data)
-        
-        '''Initial Augmentations'''
-        self.trans_coords = trans_coords(shift_ratio=50)  ### 50%
-        self.rota_coords = rota_coords(rotation_bound = ((-np.pi/32, np.pi/32), (-np.pi/32, np.pi/32), (-np.pi, np.pi)))
-        self.scale_coords = scale_coords(scale_bound=(0.9, 1.1))
-        self.elastic_coords = elastic_coords(voxel_size=self.args.voxel_size)
 
     def augs(self, coords, feats, elastic=False):
         coords = self.rota_coords(coords)
@@ -99,8 +99,7 @@ class Scannetdistill(Dataset):
     def __len__(self):
         return len(self.file)
 
-    def __getitem__(self, index):        
-        # data = read_ply(self.file[index])
+    def __getitem__(self, index):
         data = self.points_datas[index]
         coords, colors, labels = np.vstack((data['x'], data['y'], data['z'])).T, np.vstack((data['red'], data['green'], data['blue'])).T, data['class']
         colors = colors.astype(np.float32)

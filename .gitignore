@@ -1,6 +1,7 @@
 .vscode
 
 pointdc_mk/ckpt
+pointdc_mk/ckpt_old
 pointdc_mk/data
 
 */__pycache__
