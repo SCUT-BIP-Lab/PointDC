@@ -36,6 +36,8 @@ pip install -U MinkowskiEngine --install-option="--blas=openblas" -v --no-deps
 Download the ScanNet dataset from [the official website](http://kaldir.vc.in.tum.de/scannet_benchmark/documentation). 
 You need to sign the terms of use. Uncompress the folder and move it to 
 `${your_ScanNet}`.
+- Download sp feats files from [here](https://pan.baidu.com/s/1ibxoq3HyxRJa3KrnPafCWw?pwd=6666), and put it in the right path.
+
 
 - Preparing the dataset:
 ```shell script
@@ -61,5 +63,5 @@ Revise experiment name ```expnames=[eval_experiment_name]```in Lines 141.
 CUDA_VISIBLE_DEVICES=0, python eval_ScanNet.py
 ```
 
-## 3. Download
+## 3. Model Weights
 The trained models and other processed files can be found at [here](https://pan.baidu.com/s/1ibxoq3HyxRJa3KrnPafCWw?pwd=6666)
