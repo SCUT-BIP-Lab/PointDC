@@ -138,8 +138,8 @@ def eval_by_cluster(args, epoch, mode='svc'):
 
 if __name__ == '__main__':
     args = parse_args()
-    expnames = ['230119_0_All']
-    epoches = [60]
+    expnames = ['~'] # your exp name
+    epoches = [40, 45, 50, 55, 60]
     seeds = [12, 43, 56, 78, 90]
     for expname in expnames:
         args.save_path = 'ckpt/ScanNet'
