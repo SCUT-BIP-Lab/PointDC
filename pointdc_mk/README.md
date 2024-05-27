@@ -72,13 +72,13 @@ Uncompress the folder and move it to '${your_S3DIS}'. And there is an error in l
 ```shell script
 python data_prepare/data_prepare_S3DIS.py --data_path ${your_S3DIS}
 ```
-This code will preprcocess ScanNet and put it under `./data/S3DIS/processed`
+This code will preprcocess S3DIS and put it under `./data/S3DIS/processed`
 
 - Construct initial superpoints:
 ```shell script
 python data_prepare/initialSP_prepare_S3DIS.py
 ```
-This code will construct superpoints on ScanNet and put it under `./data/S3DIS/initial_superpoints`
+This code will construct superpoints on S3DIS and put it under `./data/S3DIS/initial_superpoints`
 
 - Training:
 ```shell script
