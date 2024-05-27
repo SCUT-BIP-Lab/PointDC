@@ -16,9 +16,8 @@ We propose an unsupervised point clouds semantic segmentation framework, called 
 
 ## TODO
 - [x] Release code deployed on the ScanNet dataset and model weight files
-- [ ] Release code deployed on the S3DIS dataset and model weight files
-- [ ] Release code for extracting image features and image weight files
-- [ ] Release Spare Feature Volume files
+- [x] Release code deployed on the S3DIS dataset and model weight files
+- [x] Release Spare Feature Volume files
 
 ## 1. Setup
 Setting up for this project involves installing dependencies. 
@@ -53,7 +52,7 @@ This code will construct superpoints on ScanNet and put it under `./data/ScanNet
 
 - Training:
 ```shell script
-CUDA_VISIBLE_DEVICES=0, python train_ScanNet.py --expname ${your_experiment_name}$
+CUDA_VISIBLE_DEVICES=0, python train_ScanNet.py --expname ${your_experiment_name}
 ```
 The output model and log file will be saved in `./ckpt/ScanNet` by default.
 
@@ -63,5 +62,35 @@ Revise experiment name ```expnames=[eval_experiment_name]```in Lines 141.
 CUDA_VISIBLE_DEVICES=0, python eval_ScanNet.py
 ```
 
-## 3. Model Weights
-The trained models and other processed files can be found at [here](https://pan.baidu.com/s/1ibxoq3HyxRJa3KrnPafCWw?pwd=6666)
+### 2.2 S3DIS
+Download the S3DIS dataset from [the official website](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1&pli=1), download the files named “Stanford3dDataset_v1.2.zip".
+Uncompress the folder and move it to '${your_S3DIS}'. And there is an error in line 180389 of file Area_5/hallway_6/Annotations/ceiling_1.txt. It need to be fixed manually.
+- Download sp feats and sp files from [here](https://pan.baidu.com/s/1ibxoq3HyxRJa3KrnPafCWw?pwd=6666), and put it in the right path.
+>Due to the randomness in the construction of super-voxels, different super-voxels will lead to different super-voxel features. Therefore, we provide both super-voxel features and corresponding supe-voxels. This only affects the distillation stage.
+
+- Preparing the dataset:
+```shell script
+python data_prepare/data_prepare_S3DIS.py --data_path ${your_S3DIS}
+```
+This code will preprcocess ScanNet and put it under `./data/S3DIS/processed`
+
+- Construct initial superpoints:
+```shell script
+python data_prepare/initialSP_prepare_S3DIS.py
+```
+This code will construct superpoints on ScanNet and put it under `./data/S3DIS/initial_superpoints`
+
+- Training:
+```shell script
+CUDA_VISIBLE_DEVICES=0, python train_S3DIS.py --expname ${your_experiment_name}
+```
+The output model and log file will be saved in `./ckpt/S3DIS` by default.
+
+- Evaling:
+Revise experiment name `expnames=[eval_experiment_name]`.
+```shell script
+CUDA_VISIBLE_DEVICES=0, python eval_S3DIS.py
+```
+
+## 3. Model Weights Files
+The trained models and other processed files can be found at [here](https://pan.baidu.com/s/1ibxoq3HyxRJa3KrnPafCWw?pwd=6666).
