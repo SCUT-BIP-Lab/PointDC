@@ -104,8 +104,7 @@ def init_get_sp_feature(args, loader, model, submodel=None):
     with torch.no_grad():
         for batch_idx, data in enumerate(loader):
             coords, features, _, labels, inverse_map, pseudo_labels, inds, region, index, scenenames = data
-            region      = region.squeeze()+1
-            raw_region  = region.clone()
+            region  = region.squeeze()
 
             in_field = ME.TensorField(features, coords, device=0)
 
@@ -117,16 +116,11 @@ def init_get_sp_feature(args, loader, model, submodel=None):
             feats_nonorm = feats_nonorm[inverse_map.long()] # 获取points feats
             feats_norm = F.normalize(feats_nonorm, dim=1) ## NOTE 可能需要normalize？没啥区别
 
-            region_feats = scatter(feats_norm, raw_region.cuda(), dim=0, reduce='mean')
+            valid_mask = region!=-1 # 获取带训练的mask区域
+            region_feats = scatter(feats_norm[valid_mask], region[valid_mask].cuda(), dim=0, reduce='mean')
 
-            valid_mask = torch.logical_and(labels!=-1, region>0) # 获取带训练的mask区域
-            # labels = labels[valid_mask]
-            region_masked = region[valid_mask].long()
-            region_masked_num = torch.unique(region_masked)
-            region_masked_feats = region_feats[region_masked_num]
-            region_masked_feats_norm = F.normalize(region_masked_feats, dim=1).cpu()
-
-            region_feats_list.append(region_masked_feats_norm)
+            region_feats_norm = F.normalize(region_feats, dim=1).cpu()
+            region_feats_list.append(region_feats_norm)
             
             torch.cuda.empty_cache()
             torch.cuda.synchronize(torch.device("cuda"))
@@ -146,7 +140,6 @@ def init_get_pseudo(args, loader, model, centroids_norm, submodel=None):
             coords, features, _, labels, inverse_map, pseudo_labels, inds, region, index, scenenames = data
             region = region.squeeze()+1
             raw_region = region.clone()
-            region_mask = raw_region >= 0
 
             in_field = ME.TensorField(features, coords, device=0)
 
@@ -158,20 +151,19 @@ def init_get_pseudo(args, loader, model, centroids_norm, submodel=None):
             feats_nonorm = feats_nonorm[inverse_map.long()] # 获取points feats
             feats_norm = F.normalize(feats_nonorm, dim=1) ## NOTE 可能需要normalize？
             
-            scores = F.linear(F.normalize(feats_norm), F.normalize(centroids_norm))
-            preds = torch.argmax(scores, dim=1).cpu()
+            scores = F.linear(feats_norm, F.normalize(centroids_norm))
+            preds = torch.argmax(scores, dim=1).cpu() # 基于点的预测结果
             
             region_feats = scatter(feats_norm, raw_region.cuda(), dim=0, reduce='mean')
             
-            region_inds = torch.unique(region)
-            region_scores = F.linear(F.normalize(region_feats), F.normalize(centroids_norm))
-            region_no = 0
-            for id in region_inds:
+            region_inds = torch.unique(region, sorted=True)
+            region_scores = F.linear(F.normalize(region_feats), F.normalize(centroids_norm)) # 超体素的预测结果
+            for id in region_inds: # 遇到0跳过
                 if id != 0:
                     valid_mask = id == region
-                    preds[valid_mask] = torch.argmax(region_scores, dim=1).cpu()[region_no]
-                    region_no +=1
+                    preds[valid_mask] = torch.argmax(region_scores, dim=1).cpu()[id]
 
+            preds[labels==-1] = -1
             pseudo_label_file = pseudo_label_folder + '/' + scenenames[0] + '.npy'
             np.save(pseudo_label_file, preds)
 
@@ -184,7 +176,7 @@ def init_get_pseudo(args, loader, model, centroids_norm, submodel=None):
     all_pseudo = np.concatenate(all_pseudo)
     all_label = np.concatenate(all_label)
 
-    return all_pseudo, all_label
+    return all_pseudo.astype('int64'), all_label.astype('int64')
 
 def get_fixclassifier(in_channel, centroids_num, centroids):
     classifier = nn.Linear(in_features=in_channel, out_features=centroids_num, bias=False)

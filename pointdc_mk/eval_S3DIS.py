@@ -1,43 +1,45 @@
 import torch, os, argparse, faiss
 import torch.nn.functional as F
-from datasets.ScanNet import Scannetval, cfl_collate_fn_val
+from datasets.S3DIS import S3DIStest, S3DIStrain, cfl_collate_fn_test, cfl_collate_fn
 import numpy as np
 import MinkowskiEngine as ME
 from torch.utils.data import DataLoader
 from sklearn.utils.linear_assignment_ import linear_assignment  # pip install scikit-learn==0.22.2
 from sklearn.cluster import KMeans
 from models.fpn import Res16FPN18
-from lib.utils import get_fixclassifier, init_get_sp_feature, faiss_cluster, worker_init_fn, set_seed, compute_seg_results, write_list
+from lib.utils_s3dis import *
 from tqdm import tqdm
 from os.path import join
-from datasets.ScanNet import Scannettrain, Scannetdistill, Scannetval, cfl_collate_fn, cfl_collate_fn_distill, cfl_collate_fn_val
 from datetime import datetime
 from sklearn.cluster._kmeans import k_means
 from models.pretrain_models import SubModel
 ###
 def parse_args():
+    '''PARAMETERS'''
     parser = argparse.ArgumentParser(description='PyTorch Unsuper_3D_Seg')
-    parser.add_argument('--data_path', type=str, default='data/ScanNet4growsp/train',
-                        help='pont cloud data path')
-    parser.add_argument('--feats_path', type=str, default='data/ScanNet4growsp/traindatas',
-                        help='pont cloud data path')
-    parser.add_argument('--sp_path', type=str, default= 'data/scans_growed_sp',
-                        help='initial sp path')
-    parser.add_argument('--save_path', type=str, default='ckpt/ScanNet/',
-                        help='model savepath')
+    parser.add_argument('--data_path', type=str, default='data/S3DIS/', help='pont cloud data path')
+    parser.add_argument('--sp_path', type=str, default= 'data/S3DIS/',  help='initial sp path')
+    parser.add_argument('--expname', type=str, default= 'zdefalut', help='expname for logger')
+    ###
+    parser.add_argument('--save_path', type=str, default='ckpt/S3DIS/', help='model savepath')
     ###
     parser.add_argument('--bn_momentum', type=float, default=0.02, help='batchnorm parameters')
     parser.add_argument('--conv1_kernel_size', type=int, default=5, help='kernel size of 1st conv layers')
-    ####
-    parser.add_argument('--workers', type=int, default=10, help='how many workers for loading data')
+    ###
+    parser.add_argument('--workers', type=int, default=8, help='how many workers for loading data')
     parser.add_argument('--seed', type=int, default=2023, help='random seed')
-    parser.add_argument('--voxel_size', type=float, default=0.02, help='voxel size in SparseConv')
+    parser.add_argument('--log-interval', type=int, default=150, help='log interval')
+    parser.add_argument('--batch_size', type=int, default=8, help='batchsize in training')
+    parser.add_argument('--voxel_size', type=float, default=0.05, help='voxel size in SparseConv')
     parser.add_argument('--input_dim', type=int, default=6, help='network input dimension')### 6 for XYZGB
-    parser.add_argument('--primitive_num', type=int, default=30, help='how many primitives used in training')
-    parser.add_argument('--semantic_class', type=int, default=20, help='ground truth semantic class')
+    parser.add_argument('--primitive_num', type=int, default=13, help='how many primitives used in training')
+    parser.add_argument('--semantic_class', type=int, default=13, help='ground truth semantic class')
     parser.add_argument('--feats_dim', type=int, default=128, help='output feature dimension')
     parser.add_argument('--ignore_label', type=int, default=-1, help='invalid label')
+    parser.add_argument('--drop_threshold', type=int, default=50, help='mask counts')
+
     return parser.parse_args()
+
 
 
 def eval_once(args, model, test_loader, classifier, use_sp=False):
@@ -55,7 +57,7 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
 
             region = region.squeeze()
             if use_sp:
-                region_inds = torch.unique(region)
+                region_inds = torch.unique(region).long()
                 region_feats = []
                 for id in region_inds:
                     if id != -1:
@@ -67,12 +69,10 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
                 preds = torch.argmax(scores, dim=1).cpu()
                 
                 region_scores = F.linear(F.normalize(region_feats), F.normalize(classifier.weight))
-                region_no = 0
-                for id in region_inds:
-                    if id != -1:
+                for id in region_inds: # 遇到0跳过
+                    if id != 0:
                         valid_mask = id == region
-                        preds[valid_mask] = torch.argmax(region_scores, dim=1).cpu()[region_no]
-                        region_no +=1
+                        preds[valid_mask] = torch.argmax(region_scores, dim=1).cpu()[id]
             else:
                 scores = F.linear(F.normalize(feats_nonorm), F.normalize(classifier.weight))
                 preds = torch.argmax(scores, dim=1).cpu()
@@ -94,8 +94,8 @@ def eval(epoch, args, mode='svc'):
     cls = get_fixclassifier(in_channel=args.feats_dim, centroids_num=args.semantic_class, centroids=centroids).cuda()
     cls.eval()
 
-    val_dataset = Scannetval(args)
-    val_loader = DataLoader(val_dataset, batch_size=1, collate_fn=cfl_collate_fn_val(), num_workers=args.workers, pin_memory=True)
+    val_dataset = S3DIStest(args)
+    val_loader = DataLoader(val_dataset, batch_size=1, collate_fn=cfl_collate_fn_test(), num_workers=args.cluster_workers, pin_memory=True)
 
     preds, labels = eval_once(args, model, val_loader, cls, use_sp=True)
     all_preds = torch.cat(preds).numpy()
@@ -107,11 +107,11 @@ def eval(epoch, args, mode='svc'):
 
 def eval_by_cluster(args, epoch, mode='svc'):
     ## Prepare Data
-    trainset = Scannettrain(args)
+    trainset = S3DIStrain(args, areas=['Area_1', 'Area_2', 'Area_3', 'Area_4', 'Area_6'])
     cluster_loader = DataLoader(trainset, batch_size=1, shuffle=True, collate_fn=cfl_collate_fn(), \
                                 num_workers=args.workers, pin_memory=True, worker_init_fn=worker_init_fn(args.seed))
-    val_dataset = Scannetval(args)
-    val_loader = DataLoader(val_dataset, batch_size=1, collate_fn=cfl_collate_fn_val(), num_workers=args.workers, pin_memory=True)
+    val_dataset = S3DIStest(args)
+    val_loader = DataLoader(val_dataset, batch_size=1, collate_fn=cfl_collate_fn_test(), num_workers=args.workers, pin_memory=True)
     ## Define model
     model = Res16FPN18(in_channels=args.input_dim, out_channels=args.primitive_num, conv1_kernel_size=args.conv1_kernel_size, config=args, mode='train').cuda()
     model.load_state_dict(torch.load(os.path.join(args.save_path, mode, 'model_' + str(epoch) + '_checkpoint.pth')))
@@ -137,11 +137,11 @@ def eval_by_cluster(args, epoch, mode='svc'):
 
 if __name__ == '__main__':
     args = parse_args()
-    expnames = ['~'] # your exp name
-    epoches = []
+    expnames = ['240524_trainall']
+    epoches = [70, 80, 90]
     seeds = [12, 43, 56, 78, 90]
     for expname in expnames:
-        args.save_path = 'ckpt/ScanNet'
+        args.save_path = 'ckpt/S3DIS'
         args.save_path = join(args.save_path, expname)
         assert os.path.exists(args.save_path), 'There is no {} !!!'.format(expname)
         if not os.path.exists(join('results', expname)):

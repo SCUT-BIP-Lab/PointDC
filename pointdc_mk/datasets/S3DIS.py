@@ -33,13 +33,12 @@ class S3DISdistill(Dataset):
                                12: 'clutter'}
 
         ''' Reading Data'''
-        folders_bar = tqdm(sorted(glob(join(self.args.data_path, 'input_spfeat_rebuild', '*.pt'))))
+        folders_bar = tqdm(sorted(glob(join(self.args.data_path, 'input_spfeats', '*.pt'))))
         for file in folders_bar:
-            folders_bar.set_description('PreLoad ')
+            folders_bar.set_description('PreLoad')
             ptname = os.path.basename(file)
             if ptname[0:6] in areas:
-                self.name.append(ptname[0:-6])
-                # self.file.append(file)
+                self.name.append(ptname[0:-14])
                 self.file.append(torch.load(file))
 
         '''Initial Augmentations'''
@@ -90,16 +89,18 @@ class S3DISdistill(Dataset):
 
         scale = 1 / self.args.voxel_size
         coords = np.floor(coords * scale)
-        coords, feats, labels, unique_map, inverse_map = ME.utils.sparse_quantize(np.ascontiguousarray(coords), feats, labels=labels, ignore_label=-1, return_index=True, return_inverse=True)
+        coords, feats, labels, unique_map, inverse_map = \
+                    ME.utils.sparse_quantize(np.ascontiguousarray(coords), feats, \
+                    labels=labels, ignore_label=-1, return_index=True, return_inverse=True)
         return coords.numpy(), feats, labels, unique_map, clip_inds, inverse_map.numpy()
 
     def __len__(self):
         return len(self.file)
 
     def __getitem__(self, index):
-
-        pcddict = self.file[index]
-        coords, colors, dinofeats, dis = pcddict['coord'].copy(), pcddict['color'].copy(), pcddict['spfeat'].copy(), pcddict['distance'].copy()
+        dinofeats = self.file[index]
+        data = read_ply(self.args.sp_path+'processed/'+self.name[index]+'.ply')
+        coords, colors, labels = np.vstack((data['x'], data['y'], data['z'])).T, np.vstack((data['red'], data['green'], data['blue'])).T, data['class']
         colors = colors.astype(np.float32)
         coords = coords.astype(np.float32)
         coords -= coords.mean(0)
@@ -108,14 +109,15 @@ class S3DISdistill(Dataset):
         coords, colors, labels, unique_map, clip_inds, inverse_map = self.voxelize(coords, colors, labels)
         coords = coords.astype(np.float32)
 
-        region_file = self.args.sp_path + 'initial_superpoints_rebuild/' +self.name[index] + '_superpoint.npy'
+        region_file = self.args.sp_path + 'initial_superpoints_rebuild/' + self.name[index] + '_rebuild_superpoint.npy'
         region      = np.load(region_file).astype(np.int64)
         dinofeats   = dinofeats[region+1]
-        
+
         '''Clip if Scene includes much Points'''
         if clip_inds is not None:
             region    = region[clip_inds]
             dinofeats = dinofeats[clip_inds]
+        assert region.shape[0]==inverse_map.shape[0], "check pd file and sp file"
         region    = region[unique_map]
         dinofeats = dinofeats[unique_map]
 
@@ -149,7 +151,7 @@ class S3DIScluster(Dataset):
                                12: 'clutter'}
 
         ''' Reading Data'''
-        folders = sorted(glob(join(self.args.data_path, 'input', '*.ply')))
+        folders = sorted(glob(join(self.args.data_path, 'processed', '*.ply')))
         for _, file in enumerate(folders):
             plyname = os.path.basename(file)
             if plyname[0:6] in areas:
@@ -190,7 +192,8 @@ class S3DIScluster(Dataset):
     def __getitem__(self, index):
         scene_name = self.name[index] 
         data = read_ply(self.file[index])
-        coords, colors, labels = np.vstack((data['x'], data['y'], data['z'])).T, np.vstack((data['red'], data['green'], data['blue'])).T, data['class']
+        coords, colors, labels = np.vstack((data['x'], data['y'], data['z'])).T, \
+                                    np.vstack((data['red'], data['green'], data['blue'])).T, data['class']
         colors = colors.astype(np.float32)
         coords = coords.astype(np.float32)
         coords -= coords.mean(0)
@@ -245,7 +248,7 @@ class S3DIStrain(Dataset):
                                12: 'clutter'}
 
         ''' Reading Data'''
-        folders = sorted(glob(join(self.args.data_path, 'input', '*.ply')))
+        folders = sorted(glob(join(self.args.data_path, 'processed', '*.ply')))
         for _, file in enumerate(folders):
             plyname = os.path.basename(file)
             if plyname[0:6] in areas:
@@ -362,7 +365,6 @@ class S3DIStrain(Dataset):
 
         return coords, feats, normals, labels, inverse_map, pseudo, inds, region, index, scene_name
 
-
 class S3DIStest(Dataset):
     def __init__(self, args, areas=['Area_5']):
         self.args = args
@@ -383,7 +385,7 @@ class S3DIStest(Dataset):
                                12: 'clutter'}
 
         ''' Reading Data'''
-        folders = sorted(glob(join(self.args.data_path, 'input', '*.ply')))
+        folders = sorted(glob(join(self.args.data_path, 'processed', '*.ply')))
         for _, file in enumerate(folders):
             plyname = os.path.basename(file)
             if plyname[0:6] in areas:
@@ -418,7 +420,7 @@ class S3DIStest(Dataset):
 
         coords, colors, _, unique_map, inverse_map = self.voxelize(coords, colors, labels)
         coords = coords.astype(np.float32)
-        region_file = self.args.sp_path + 'initial_superpoints/' +self.name[index] + '_superpoint.npy'
+        region_file = self.args.sp_path + 'initial_superpoints/' + self.name[index] + '_superpoint.npy'
         region = np.load(region_file)
 
         labels[labels == self.args.ignore_label] = -1
