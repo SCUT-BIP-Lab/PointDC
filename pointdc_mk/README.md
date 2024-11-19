@@ -63,7 +63,7 @@ CUDA_VISIBLE_DEVICES=0, python eval_ScanNet.py
 ```
 
 ### 2.2 S3DIS
-Download the S3DIS dataset from [the official website](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1&pli=1), download the files named “Stanford3dDataset_v1.2.zip".
+Download the S3DIS dataset from [the official website](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1&pli=1), download the files named **Stanford3dDataset_v1.2.zip**.
 Uncompress the folder and move it to '${your_S3DIS}'. And there is an error in line 180389 of file Area_5/hallway_6/Annotations/ceiling_1.txt. It need to be fixed manually.
 - Download sp feats and sp files from [here](https://pan.baidu.com/s/1ibxoq3HyxRJa3KrnPafCWw?pwd=6666), and put it in the right path.
 >Due to the randomness in the construction of super-voxels, different super-voxels will lead to different super-voxel features. Therefore, we provide both super-voxel features and corresponding supe-voxels. This only affects the distillation stage.
