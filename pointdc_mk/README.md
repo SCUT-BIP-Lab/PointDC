@@ -95,7 +95,7 @@ CUDA_VISIBLE_DEVICES=0, python eval_S3DIS.py
 ## 3. Model Weights Files
 The trained models and other processed files can be found at [here](https://pan.baidu.com/s/1ibxoq3HyxRJa3KrnPafCWw?pwd=6666).
 
-## Acknowledge
+## Acknowledgement
 [MinkowskiEngine](https://github.com/NVIDIA/MinkowskiEngine)
 
 [growsp](https://github.com/vLAR-group/GrowSP)
